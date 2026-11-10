@@ -50,7 +50,7 @@ flowchart TD
   TRACE --> EVAL
 ```
 
-See [Architecture](docs/architecture.md) for components, boundaries, and initial technology choices.
+See [Architecture](docs/architecture.md) for component responsibilities, system boundaries, and stack decisions.
 
 ## Planned incident scenarios
 
@@ -117,7 +117,7 @@ The demo is the product contract: start healthy, inject a failure, show triage a
 | Frontend | Next.js + React + Tailwind | Real-time operator dashboard with SSE streaming |
 | Backend gateway | Go | Low-latency API gateway |
 | Backend agent service | FastAPI (Python) | Fast iteration and a strong agent ecosystem |
-| Deployment | Render (full-stack) | Public URL, workers, and database in one deployment platform |
+| Deployment | Render (full-stack) | Public URL, workers, database, and predictable pricing |
 
 Postgres 16, Redis 7, Docker Compose, and Grafana support the simulated environment and local development. The sub-15ms triage and sub-1ms firewall figures are performance targets to measure, not current results. See [Architecture](docs/architecture.md) for responsibilities and system boundaries.
 
