@@ -99,22 +99,27 @@ The project will report before-and-after evidence for context engineering, evalu
 
 The demo is the product contract: start healthy, inject a failure, show triage and multi-agent diagnosis, approve bounded remediation, replay the trace offline, block a prompt-injected action, and finish on the evaluation dashboard. The detailed run-of-show is in [Demo](docs/demo.md).
 
-## Initial technology choices
+## Preferred technology stack
 
-| Layer | Starting choice | Reason |
-| --- | --- | --- |
-| Services and API | Python with FastAPI | Shared language for the agent, API, and evaluation harness |
-| Local environment | Docker Compose | Reproducible one-command local stack |
-| Datastores | Postgres 16 and Redis 7 | Realistic dependencies and fault surfaces |
-| Telemetry | Prometheus, Loki, Jaeger, Grafana | Real metrics, logs, traces, and dashboards |
-| Event stream | Redpanda (Kafka API) | Kafka-compatible local streaming with a compact deployment |
-| Triage | Rules first, then a small ONNX model | Keep common decisions fast and avoid LLM calls for noise |
-| Agent orchestration | Custom supervisor and specialist loop | Explicit control flow and less framework lock-in |
-| Policy | OPA/Rego, with measured performance | Declarative, testable allow/deny/approval rules |
-| UI | Next.js, React, Tailwind | Operator dashboard and approval flow |
-| Deployment | Docker Compose locally; public demo host to be selected | Reproducible development and shareable demo |
+| Layer | Technology | Justification |
+| :--- | :--- | :--- |
+| Streaming | Redpanda | Kafka-compatible, single binary, lower ops for local development and CI |
+| Metrics | Prometheus | Industry standard with real PromQL |
+| Logs | Loki | Prometheus-native workflow with real LogQL |
+| Traces | Jaeger + OpenTelemetry GenAI semantic conventions | Standard trace structure with vendor-neutral GenAI attributes |
+| Triage serving | Go + ONNX Runtime | Designed for sub-15ms decisions with low memory use |
+| Agent orchestration | Custom Python supervisor | Explicit systems control without framework dependency |
+| LLM routing | LiteLLM + provider abstraction | Multi-provider, cost-tiered routing |
+| Policy engine | OPA/Rego | Industry-standard governance for agent tool calls |
+| Firewall + replay | Go | Designed for sub-1ms policy-path overhead and deterministic replay |
+| Eval store | Langfuse (self-hosted) | Open-source evaluation and trace store that can run with the project |
+| Eval runner | Promptfoo + pytest | Declarative evaluations with CI gates and focused tests |
+| Frontend | Next.js + React + Tailwind | Real-time operator dashboard with SSE streaming |
+| Backend gateway | Go | Low-latency API gateway |
+| Backend agent service | FastAPI (Python) | Fast iteration and a strong agent ecosystem |
+| Deployment | Render (full-stack) | Public URL, workers, and database in one deployment platform |
 
-These are initial implementation choices and can change if a measured prototype shows a better fit. Trade-offs and boundaries are documented in [Architecture](docs/architecture.md).
+Postgres 16, Redis 7, Docker Compose, and Grafana support the simulated environment and local development. The sub-15ms triage and sub-1ms firewall figures are performance targets to measure, not current results. See [Architecture](docs/architecture.md) for responsibilities and system boundaries.
 
 ## Running Vigil
 
