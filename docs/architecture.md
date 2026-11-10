@@ -21,18 +21,25 @@ The first release is a single-user capstone demo. It does not connect to a real 
 
 | Component | Responsibility | Initial technology |
 | --- | --- | --- |
-| Simulated app | API, payments, and inventory service behavior | Python/FastAPI or small Python services in Compose |
+| Simulated app | API, payments, and inventory service behavior | Containers in Docker Compose; service implementation language remains open |
 | Dependencies | Relational data, connection pools, and cache behavior | Postgres 16, Redis 7 |
-| Telemetry | Metrics, logs, traces, and local exploration | Prometheus, Loki, Jaeger, Grafana |
+| Metrics and logs | Store and query metrics and logs | Prometheus/PromQL, Loki/LogQL |
+| Traces | Store distributed traces and GenAI spans | Jaeger plus OpenTelemetry GenAI semantic conventions |
+| Dashboards | Explore telemetry and Vigil operations | Grafana for telemetry; Next.js for the operator product surface |
 | Workload generator | Seeded normal traffic and non-incident windows | Python script with explicit seed |
 | Chaos injector | Named faults and adversarial log injection | CLI and `make scenario NAME=...` |
 | Ingestion | Event normalization and routing | Redpanda plus normalizer service |
-| Tier-1 triage | Filter noise and route alerts cheaply | Rules plus ONNX classifier |
+| Tier-1 triage | Filter noise and route alerts cheaply | Go serving rules/classifier with ONNX Runtime |
 | Investigation | Delegate evidence collection and synthesize findings | Custom Python supervisor and specialists |
-| Aegis | Deterministic tool authorization and approval checks | OPA/Rego initially |
-| Trace and replay | Preserve ordered decisions and replay mocked boundaries | SHA-256 hash chain and replay state machine |
-| Evaluation | Run golden incidents and enforce regression gates | Python runner and CI workflow |
-| Operator surface | Incidents, approvals, postmortems, and eval results | Next.js/React/Tailwind plus FastAPI |
+| LLM routing | Choose providers and cost tiers | LiteLLM behind a provider abstraction |
+| Aegis policy | Deterministic tool authorization and approval checks | OPA/Rego |
+| Firewall and replay | Enforce tool boundary and replay mocked calls | Go service, SHA-256 hash chain, deterministic replay state machine |
+| Evaluation store | Store traces and evaluation observations | Self-hosted Langfuse |
+| Evaluation runner | Run golden incidents and enforce regression gates | Promptfoo, pytest, and CI workflow |
+| Backend gateway | Serve low-latency product API | Go |
+| Backend agent service | Serve investigation orchestration and model calls | FastAPI (Python) |
+| Operator surface | Incidents, approvals, postmortems, and eval results | Next.js, React, Tailwind, SSE |
+| Deployment | Host API, agent service, workers, and database | Render; Docker Compose remains the local development path |
 
 ## Tool boundary and replay
 
@@ -48,14 +55,16 @@ The event normalizer adds a schema version, event type, source, service, environ
 
 The investigation layer avoids inserting raw telemetry dumps into model context. It extracts anomalies, groups duplicates, preserves provenance, summarizes at specialist and supervisor boundaries, and retrieves similar labeled incidents. A hard per-incident token budget applies across turns; when exhausted, the system summarizes further or escalates to a human.
 
-## Initial implementation decisions
+## Preferred implementation decisions
 
-- **Python/FastAPI:** use one language across API, agent orchestration, scenario tooling, and evaluation for an efficient capstone build. A service that needs Go performance can be considered later from measured evidence.
-- **Redpanda:** use its Kafka API for local event streaming while keeping the system compatible with common Kafka tooling.
-- **Rules before a model:** deterministic rules handle obvious noise and known patterns; ONNX inference handles residual low-latency classification. LLM investigation is reserved for incidents triage chooses to investigate or escalate.
-- **Custom orchestration:** make the supervisor's state machine, evidence handoffs, and retry bounds visible and replayable instead of hiding them inside a general agent framework.
-- **OPA/Rego:** start with declarative, testable policy rules. Measure p99 policy latency against the <1ms target before deciding whether a compiled WASM path is needed.
-- **Two or more model providers:** route by task tier to limit lock-in. Provider selection, pricing, and model versions will be recorded in configuration and evaluation output before the live demo.
+- **Go for latency-sensitive boundaries:** use Go for triage serving, the backend gateway, and the firewall/replay service. Measure triage against the <15ms goal and firewall policy-path overhead against the <1ms p99 goal; neither target is a measured result yet.
+- **Python for agent iteration:** use a custom Python supervisor and a separate FastAPI agent service. Keep the investigation state machine, evidence handoffs, and retry bounds explicit and replayable.
+- **Redpanda:** use its Kafka API for streaming while keeping compatibility with common Kafka tooling and reducing local/CI operations.
+- **Rules and ONNX before LLM investigation:** deterministic rules handle known patterns; Go-hosted ONNX inference handles residual fast triage. Only investigate/escalate decisions proceed to model-backed agents.
+- **LiteLLM:** route multiple providers by task tier through an abstraction. Record provider, model, version, and cost assumptions with evaluation results.
+- **OPA/Rego:** express allow, deny, and approval policies declaratively, then measure the compiled policy path under realistic requests.
+- **Langfuse with Promptfoo and pytest:** self-host Langfuse for evaluation and trace storage; use Promptfoo for declarative scenario prompts and pytest for deterministic harness/policy tests and CI gates.
+- **Render:** deploy the full-stack demo, workers, and database on Render. Keep Docker Compose as the local reproducible path and document any differences between local and hosted configuration.
 
 ## Reliability and failure behavior
 
@@ -68,10 +77,9 @@ The investigation layer avoids inserting raw telemetry dumps into model context.
 
 ## Open design questions
 
-- Final service language and split between the API and agent workers.
 - Classifier dataset and selection between a gradient-boosted model and a distilled transformer.
 - Embedding model and local vector-store choice for similar-incident retrieval.
-- Public demo host and deployment constraints.
+- Render service topology, database sizing, and deployment constraints.
 - Trace retention and redaction policy for any future external or personally identifying fields.
 
 Decisions will be updated here when a small prototype or evaluation provides evidence.
